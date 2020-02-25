@@ -6,18 +6,18 @@ extern crate quick_error;
 
 use futures::future::{lazy, Loop};
 use futures::sync::mpsc::{self, Sender};
-use libc::{AF_UNIX, F_SETFL, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_STREAM};
 use libc::{connect, fcntl, sa_family_t, sockaddr_un, socket, socklen_t};
+use libc::{AF_UNIX, F_SETFL, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_STREAM};
 use std::collections::HashMap;
 use std::mem::{size_of, zeroed};
 use std::slice::from_raw_parts_mut;
 use std::thread::{self, ThreadId};
 use std::time::{Duration, Instant};
-use tokio_timer::Interval;
 use tokio::io;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::prelude::*;
 use tokio::reactor;
+use tokio_timer::Interval;
 
 const SOCKET_PATH: &str = "\0/tmp/rust_unix.socket";
 
