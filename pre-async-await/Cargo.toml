@@ -1,5 +1,5 @@
 [package]
-name = "echo"
+name = "client_server"
 version = "0.1.0"
 authors = ["allentc <allenc28@yahoo.com>"]
 edition = "2018"

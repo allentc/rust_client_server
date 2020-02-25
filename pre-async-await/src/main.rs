@@ -41,7 +41,8 @@ quick_error! {
 
 fn main() {
     let matches = clap_app!(app =>
-        (version: "1.0")
+        (name: "client_server")
+        (version: "0.1.0")
         (author: "A. Campbell")
         (@setting SubcommandRequired)
         (@subcommand server => (about: "Launch a server process"))
