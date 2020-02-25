@@ -1,0 +1,19 @@
+[package]
+name = "echo"
+version = "0.1.0"
+authors = ["allentc <allenc28@yahoo.com>"]
+edition = "2018"
+
+[dependencies]
+clap = "2.33.0"
+futures = "0.1.29"
+libc = "0.2.66"
+mio-uds = "^0.6.5"
+nix = "0.15.0"
+quick-error = "1.2.2"
+tokio = "0.1.22"
+tokio-timer = "0.2.11"
+
+# https://news.ycombinator.com/item?id=19008224
+# https://github.com/tokio-rs/tokio-uds/issues/1
+# https://v0-1--tokio.netlify.com/
