@@ -1,0 +1,18 @@
+[package]
+name = "client_server"
+version = "0.1.0"
+authors = ["allentc <allenc28@yahoo.com>"]
+edition = "2018"
+
+[dependencies]
+clap = "2.33.0"
+futures = "0.3.4"
+libc = "0.2.67"
+quick-error = "1.2.3"
+tokio = { version = "0.2.11", features = ["full"] }
+tokio-timer = "0.2.13"
+
+[features]
+#[cfg(feature = "sync")]
+#[cfg(feature = "time")]
+#[cfg(feature = "uds")]
