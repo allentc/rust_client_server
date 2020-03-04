@@ -6,18 +6,15 @@ extern crate quick_error;
 
 use futures::future::{lazy, Loop};
 use futures::sync::mpsc::{self, Sender};
-use libc::{connect, fcntl, sa_family_t, sockaddr_un, socket, socklen_t};
-use libc::{AF_UNIX, F_SETFL, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_STREAM};
 use std::collections::HashMap;
-use std::mem::{size_of, zeroed};
-use std::slice::from_raw_parts_mut;
 use std::thread::{self, ThreadId};
 use std::time::{Duration, Instant};
 use tokio::io;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::prelude::*;
-use tokio::reactor;
 use tokio_timer::Interval;
+
+mod unixstream_workaround;
 
 const SOCKET_PATH: &str = "\0/tmp/rust_unix.socket";
 
@@ -31,9 +28,6 @@ quick_error! {
             from()
         }
         SendErr(err: mpsc::SendError<ScoreboardMsg>) {
-            from()
-        }
-        LibcError(err: LibcError) {
             from()
         }
     }
@@ -162,16 +156,13 @@ enum ScoreboardMsg {
 }
 
 fn client(
-    n: usize,
+    _n: usize,
     interval: Duration,
     sender: Sender<ScoreboardMsg>,
 ) -> impl Future<Item = (), Error = ()> {
-    blocking_connect_of_nonblocking_socket(SOCKET_PATH)
-        .map_err(Error::from)
-        .and_then(|stream| std_unixstream_to_tokio_unixstream(stream).map_err(Error::from))
+    unixstream_workaround::connect(SOCKET_PATH)
         .map_err(Error::from)
         .and_then(move |socket| {
-            println!("Connected {} {:?}", n, socket);
             let buf: [u8; 1] = [0];
 
             future::loop_fn((socket, buf, sender), move |(socket, buf, sender)| {
@@ -204,73 +195,4 @@ fn server(socket: UnixStream) -> impl Future<Item = (), Error = ()> {
             .and_then(|tup| Ok(Loop::Continue(tup)))
     })
     .map_err(|err| eprintln!("server failed: {:?}", err))
-}
-
-#[derive(Debug)]
-struct LibcError {
-    msg: String,
-}
-
-impl LibcError {
-    fn from(msg: &str) -> LibcError {
-        LibcError {
-            msg: String::from(msg),
-        }
-    }
-}
-
-// Hereafter is workaround to obtain a nonblocking tokio UnixStream with an
-// 'abstract' name.  This is necessary because mio_uds eats the EAGAIN result
-// to connect() that occurs when you open large numbers of AF_UNIX sockets
-// very quickly.
-
-use std::os::unix::io::FromRawFd;
-type StdUnixStream = std::os::unix::net::UnixStream; // avoid name collision with tokio UnixStream
-
-fn std_unixstream_to_tokio_unixstream(
-    stream: StdUnixStream,
-) -> impl Future<Item = UnixStream, Error = std::io::Error> {
-    let handle = &reactor::Handle::default();
-    future::result(UnixStream::from_std(stream, handle))
-}
-
-fn blocking_connect_of_nonblocking_socket(
-    path: &str,
-) -> impl Future<Item = StdUnixStream, Error = LibcError> {
-    let fh = unsafe { socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0) };
-
-    if fh == -1 {
-        return future::err(LibcError::from("socket() failed"));
-    }
-
-    let (addr, len) = make_sockaddr_un_from_path(path);
-
-    let addr = &addr as *const _ as *const _;
-    let result = unsafe { connect(fh, addr, len) };
-
-    if result != 0 {
-        return future::err(LibcError::from("connect() failed"));
-    }
-
-    let result = unsafe { fcntl(fh, F_SETFL, SOCK_NONBLOCK) };
-
-    if result == -1 {
-        return future::err(LibcError::from("fcntl(F_SETFL) failed"));
-    }
-
-    future::ok(unsafe { StdUnixStream::from_raw_fd(fh) })
-}
-
-fn make_sockaddr_un_from_path(path: &str) -> (sockaddr_un, socklen_t) {
-    let offset = size_of::<sa_family_t>();
-    let bytes = path.as_bytes();
-    let len = (offset + bytes.len()) as u32;
-    let mut addr: sockaddr_un = unsafe { zeroed() };
-    addr.sun_family = AF_UNIX as sa_family_t;
-    let ptr = &addr as *const _ as *mut u8;
-    let ptr = unsafe { ptr.add(offset) };
-    let sun_path = unsafe { from_raw_parts_mut(ptr, bytes.len()) };
-    sun_path.copy_from_slice(bytes);
-
-    (addr, len)
 }
