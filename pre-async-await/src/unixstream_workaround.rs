@@ -3,9 +3,11 @@
 // that occurs when you open large numbers of AF_UNIX sockets very quickly.
 // Also, std::os::unix::net::UnixStream doesn't permit abstract names.
 //
-// So, libc is used to obtain a file raw file descriptor from the OS.  The raw
-// file descriptor is used to make a std UnixStream which is then used to make
-// a tokio non-blocking UnixStream.
+// So, a sockaddr_un is prepared with an abstract path.  Then libc is used to
+// obtain a raw file descriptor from the OS.  The abstract name is then used to
+// perform a non-blocking connect().  The now connected raw file descriptor is
+// then used to make a std UnixStream which is then used to make a tokio non-
+// blocking UnixStream.
 
 use std::io;
 use std::mem::{size_of, zeroed};
