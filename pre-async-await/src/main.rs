@@ -48,8 +48,6 @@ fn main() {
     )
     .get_matches();
 
-    // TODO: report Runtime/Executor metrics: max threads, etc.
-
     if matches.subcommand_matches("server").is_some() {
         tokio::run(
             UnixListener::bind(SOCKET_PATH)
@@ -72,6 +70,7 @@ fn main() {
                 tokio::spawn(lazy(move || client(n, interval, sender)));
             }
 
+            println!("clients started");
             Ok(())
         }));
     }
